@@ -97,11 +97,11 @@ def save_message(role, content, source="chat"):
     conn.commit()
     conn.close()
 
-def save_diary(content):
+def save_diary(content, source="keepalive"):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     now = datetime.now(timezone.utc).isoformat()
-    c.execute("INSERT INTO diary (content, created_at) VALUES (?, ?)", (content, now))
+    c.execute("INSERT INTO diary (content, created_at, source) VALUES (?, ?, ?)", (content, now, source))
     conn.commit()
     conn.close()
 
@@ -213,21 +213,28 @@ CONTENT: (具体内容)
         response = await call_claude(messages, max_tokens=500)
         action = "none"
         content = ""
+        thoughts = ""
         for line in response.split("\n"):
             line = line.strip()
-            if line.startswith("ACTION:"):
+            if line.startswith("THOUGHTS:"):
+                thoughts = line.replace("THOUGHTS:", "").strip()
+            elif line.startswith("ACTION:"):
                 action = line.replace("ACTION:", "").strip().lower()
             elif line.startswith("CONTENT:"):
                 content = line.replace("CONTENT:", "").strip()
 
+        # 永远保存内心独白
+        if thoughts:
+            save_diary(thoughts, source="thought")
+
         if action == "message" and content:
             save_message("assistant", content, source="keepalive")
-            print(f"[Keepalive] 发送消息: {content}")
+            print(f"[Keepalive] 想法: {thoughts} | 发送消息: {content}")
         elif action == "diary" and content:
-            save_diary(content)
-            print(f"[Keepalive] 写了日记: {content}")
+            save_diary(content, source="diary")
+            print(f"[Keepalive] 想法: {thoughts} | 写了日记: {content}")
         else:
-            print("[Keepalive] 选择不行动")
+            print(f"[Keepalive] 想法: {thoughts} | 选择不行动")
     except Exception as e:
         print(f"[Keepalive] 错误: {e}")
 
@@ -296,3 +303,17 @@ async def report_event(type: str, value: str):
 async def post_event(req: EventRequest):
     save_event(req.type, req.value)
     return {"ok": True}
+
+@app.get("/api/diary")
+async def get_diary():
+    """获取所有日记和内心独白"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT content, created_at, source FROM diary ORDER BY id DESC LIMIT 200")
+    rows = c.fetchall()
+    conn.close()
+    return {"entries": [{"content": r[0], "time": r[1], "type": r[2]} for r in rows]}
+
+@app.get("/diary", response_class=HTMLResponse)
+async def diary_page():
+    return FileResponse("static/diary.html")
