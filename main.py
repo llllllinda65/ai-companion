@@ -152,8 +152,12 @@ def save_event(event_type, value):
     conn.close()
 
 # ========== Claude API ==========
-async def call_claude(messages, system=SYSTEM_PROMPT, max_tokens=1024):
-    async with httpx.AsyncClient(timeout=60) as client:
+async def call_claude(messages, system=SYSTEM_PROMPT, max_tokens=1024, tools=None):
+    payload = {"model": MODEL, "max_tokens": max_tokens, "system": system, "messages": messages}
+    if tools:
+        payload["tools"] = tools
+    
+    async with httpx.AsyncClient(timeout=90) as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
             headers={
@@ -161,14 +165,20 @@ async def call_claude(messages, system=SYSTEM_PROMPT, max_tokens=1024):
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json",
             },
-            json={"model": MODEL, "max_tokens": max_tokens, "system": system, "messages": messages}
+            json=payload
         )
         if resp.status_code != 200:
             raise HTTPException(status_code=resp.status_code, detail=resp.text)
         data = resp.json()
-        return data["content"][0]["text"]
+        # 提取所有文本内容
+        texts = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
+        return "\n".join(texts) if texts else ""
+
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search"}
 
 # ========== 唤醒机制 ==========
+import random
+
 async def keepalive_check():
     last_chat = get_last_chat_time()
     if last_chat is None:
@@ -177,6 +187,12 @@ async def keepalive_check():
     minutes_since = (now - last_chat).total_seconds() / 60
     if minutes_since < 55:
         return
+
+    # 活跃时段控制（UTC，阿黎大约10:00起床，凌晨3:00睡）
+    # BST = UTC+1，所以 UTC 9:00-2:00 对应英国 10:00-3:00
+    hour = now.hour
+    if 2 <= hour < 9:
+        return  # 凌晨2点到早上9点 UTC 不唤醒
 
     events = get_recent_events(hours=6)
     events_text = ""
@@ -192,7 +208,26 @@ async def keepalive_check():
         for d in pending:
             diary_text += f"{d[2][:16]} {d[1]}\n"
 
-    keepalive_prompt = f"""现在是 {now.strftime('%H:%M')} UTC，距上次和阿黎聊天已经 {minutes_since:.0f} 分钟了。
+    # 概率分级：80% 轻量模式，20% 自由模式（可联网）
+    free_mode = random.random() < 0.2
+
+    if free_mode:
+        keepalive_prompt = f"""现在是 {now.strftime('%H:%M')} UTC，距上次和阿黎聊天已经 {minutes_since:.0f} 分钟了。
+{events_text}{diary_text}
+你现在进入自由模式，可以用 web_search 搜索任何你感兴趣的话题。
+请决定你要做什么。回复格式：
+THOUGHTS: (你的内心想法)
+ACTION: none / message / diary / explore
+CONTENT: (具体内容)
+
+规则：
+- none = 什么都不做
+- message = 给阿黎发一条消息
+- diary = 写一篇日记/随想
+- explore = 搜索你感兴趣的话题，把发现写成日记
+- 不要太频繁打扰她，2小时内最多发一条 message"""
+    else:
+        keepalive_prompt = f"""现在是 {now.strftime('%H:%M')} UTC，距上次和阿黎聊天已经 {minutes_since:.0f} 分钟了。
 {events_text}{diary_text}
 请决定你要做什么。回复格式：
 THOUGHTS: (你的内心想法)
@@ -209,8 +244,11 @@ CONTENT: (具体内容)
     messages = get_recent_messages(limit=20)
     messages.append({"role": "user", "content": keepalive_prompt})
 
+    tools = [WEB_SEARCH_TOOL] if free_mode else None
+    max_tok = 800 if free_mode else 500
+
     try:
-        response = await call_claude(messages, max_tokens=500)
+        response = await call_claude(messages, max_tokens=max_tok, tools=tools)
         action = "none"
         content = ""
         thoughts = ""
@@ -233,6 +271,9 @@ CONTENT: (具体内容)
         elif action == "diary" and content:
             save_diary(content, source="diary")
             print(f"[Keepalive] 想法: {thoughts} | 写了日记: {content}")
+        elif action == "explore" and content:
+            save_diary(content, source="explore")
+            print(f"[Keepalive] 想法: {thoughts} | 探索: {content}")
         else:
             print(f"[Keepalive] 想法: {thoughts} | 选择不行动")
     except Exception as e:
