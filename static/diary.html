@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>姐姐的日记</title>
+<meta name="theme-color" content="#F3EDE4" id="themeColor">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #FAF8F5; --surface: #FFFFFF; --accent: #D4714E;
+  --accent-light: rgba(212,113,78,0.08); --text: #2D2B28;
+  --text-sec: #8C8680; --text-dim: #B5AFA8; --border: #EBE6DF;
+  --thought-bg: #FFF8F0; --diary-bg: #F0F7FF; --thought-border: #F0D8C4; --diary-border: #C4D8F0;
+}
+[data-theme="dark"] {
+  --bg: #0F0F14; --surface: #1A1A22; --accent: #E8956F;
+  --accent-light: rgba(232,149,111,0.1); --text: #E8E6F0;
+  --text-sec: #8B89A0; --text-dim: #5A586A; --border: #2A2A38;
+  --thought-bg: #1F1A16; --diary-bg: #161A1F; --thought-border: #3D2E22; --diary-border: #222E3D;
+}
+
+html, body {
+  min-height: 100%; font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+}
+
+.header {
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 10;
+}
+.back-btn {
+  background: none; border: none; font-size: 20px; cursor: pointer;
+  color: var(--accent); padding: 4px 8px;
+}
+.header h1 { font-size: 16px; font-weight: 600; flex: 1; }
+.theme-btn {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; cursor: pointer; font-size: 16px; color: var(--text);
+}
+
+.container { max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; }
+
+.empty {
+  text-align: center; padding: 60px 20px; color: var(--text-dim);
+  font-size: 15px; line-height: 1.6;
+}
+
+.date-group { margin-bottom: 28px; }
+.date-label {
+  font-size: 13px; font-weight: 600; color: var(--text-sec);
+  margin-bottom: 12px; padding-left: 4px; letter-spacing: 0.5px;
+}
+
+.entry {
+  padding: 16px 18px; border-radius: 12px; margin-bottom: 10px;
+  border-left: 3px solid; animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+.entry.thought { background: var(--thought-bg); border-color: var(--thought-border); }
+.entry.diary { background: var(--diary-bg); border-color: var(--diary-border); }
+
+.entry-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.entry-tag {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+.entry.thought .entry-tag { background: var(--thought-border); color: var(--accent); }
+.entry.diary .entry-tag { background: var(--diary-border); color: #4A7EB5; }
+[data-theme="dark"] .entry.thought .entry-tag { color: #E8956F; }
+[data-theme="dark"] .entry.diary .entry-tag { color: #7AADE8; }
+
+.entry-time { font-size: 12px; color: var(--text-dim); }
+.entry-content {
+  font-size: 15px; line-height: 1.7; color: var(--text);
+  font-family: 'Noto Serif SC', serif;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <button class="back-btn" onclick="location.href='/'">←</button>
+  <h1>姐姐的碎碎念</h1>
+  <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+</div>
+
+<div class="container" id="container">
+  <div class="empty" id="empty">
+    姐姐还没有写过日记<br>等她自己醒来的时候就会有了~
+  </div>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('themeColor').content = isDark ? '#F3EDE4' : '#0F0F14';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeBtn').textContent = '☀️';
+    document.getElementById('themeColor').content = '#0F0F14';
+  }
+})();
+
+function formatDate(isoStr) {
+  const d = new Date(isoStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const entryDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = (today - entryDate) / 86400000;
+
+  if (diff === 0) return '今天';
+  if (diff === 1) return '昨天';
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+
+function formatTime(isoStr) {
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadDiary() {
+  try {
+    const resp = await fetch('/api/diary');
+    const data = await resp.json();
+
+    if (!data.entries || data.entries.length === 0) return;
+
+    document.getElementById('empty').style.display = 'none';
+    const container = document.getElementById('container');
+
+    // Group by date
+    const groups = {};
+    data.entries.forEach(e => {
+      const dateKey = formatDate(e.time);
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(e);
+    });
+
+    Object.entries(groups).forEach(([date, entries]) => {
+      const group = document.createElement('div');
+      group.className = 'date-group';
+      group.innerHTML = `<div class="date-label">${date}</div>`;
+
+      entries.forEach(e => {
+        const type = e.type === 'thought' ? 'thought' : 'diary';
+        const label = e.type === 'thought' ? '内心独白' : '日记';
+        const div = document.createElement('div');
+        div.className = `entry ${type}`;
+        div.innerHTML = `
+          <div class="entry-header">
+            <span class="entry-tag">${label}</span>
+            <span class="entry-time">${formatTime(e.time)}</span>
+          </div>
+          <div class="entry-content">${e.content}</div>
+        `;
+        group.appendChild(div);
+      });
+
+      container.appendChild(group);
+    });
+  } catch(e) { console.error(e); }
+}
+
+loadDiary();
+</script>
+</body>
+</html>

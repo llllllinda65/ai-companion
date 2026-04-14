@@ -40,7 +40,7 @@ html, body {
 .header-info h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
 .header-info .status { font-size: 12px; color: var(--text-sec); display: flex; align-items: center; gap: 5px; }
 .status-dot { width: 6px; height: 6px; background: #5DB075; border-radius: 50%; }
-.header-right { margin-left: auto; }
+.header-right { margin-left: auto; display: flex; gap: 6px; }
 
 .theme-btn {
   background: none; border: 1px solid var(--border); border-radius: 8px;
@@ -118,6 +118,7 @@ html, body {
       <div class="status"><span class="status-dot"></span> 在线</div>
     </div>
     <div class="header-right">
+      <button class="theme-btn" onclick="location.href='/diary'" title="日记">📖</button>
       <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
     </div>
   </div>
