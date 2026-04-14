@@ -63,6 +63,7 @@ html, body {
 
 .entry.thought { background: var(--thought-bg); border-color: var(--thought-border); }
 .entry.diary { background: var(--diary-bg); border-color: var(--diary-border); }
+.entry.explore { background: #F0FFF0; border-color: #A8D8A8; }
 
 .entry-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .entry-tag {
@@ -71,8 +72,11 @@ html, body {
 }
 .entry.thought .entry-tag { background: var(--thought-border); color: var(--accent); }
 .entry.diary .entry-tag { background: var(--diary-border); color: #4A7EB5; }
+.entry.explore .entry-tag { background: #A8D8A8; color: #2D6B2D; }
 [data-theme="dark"] .entry.thought .entry-tag { color: #E8956F; }
 [data-theme="dark"] .entry.diary .entry-tag { color: #7AADE8; }
+[data-theme="dark"] .entry.explore { background: #141F14; border-color: #2D4A2D; }
+[data-theme="dark"] .entry.explore .entry-tag { background: #2D4A2D; color: #7ADB7A; }
 
 .entry-time { font-size: 12px; color: var(--text-dim); }
 .entry-content {
@@ -154,8 +158,9 @@ async function loadDiary() {
       group.innerHTML = `<div class="date-label">${date}</div>`;
 
       entries.forEach(e => {
-        const type = e.type === 'thought' ? 'thought' : 'diary';
-        const label = e.type === 'thought' ? '内心独白' : '日记';
+        const type = e.type === 'thought' ? 'thought' : e.type === 'explore' ? 'explore' : 'diary';
+        const labelMap = { thought: '内心独白', diary: '日记', explore: '探索发现' };
+        const label = labelMap[type] || '日记';
         const div = document.createElement('div');
         div.className = `entry ${type}`;
         div.innerHTML = `
