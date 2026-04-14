@@ -256,6 +256,8 @@ class EventRequest(BaseModel):
     type: str
     value: str
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return FileResponse("static/index.html")
